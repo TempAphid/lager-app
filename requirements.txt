@@ -1,4 +1,7 @@
+streamlit
+pandas
 psycopg2-binary
+numpy
 opencv-python-headless
 extra-streamlit-components
 bcrypt
