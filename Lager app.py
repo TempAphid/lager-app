@@ -2,7 +2,7 @@
 Verksted-- og Lagerinventar (Med dynamiske lagre, bedriftsregistrering og sikker utlogging)
 -----------------------------------------------------------------------------------------------------------------
 """
-Python
+
 import shutil
 import pytesseract
 
