@@ -2,6 +2,17 @@
 Verksted-- og Lagerinventar (Med dynamiske lagre, bedriftsregistrering og sikker utlogging)
 -----------------------------------------------------------------------------------------------------------------
 """
+Python
+import shutil
+import pytesseract
+
+# Sett tesseract-sti automatisk basert på miljø
+tesseract_path = shutil.which("tesseract")
+if tesseract_path:
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+    OCR_AVAILABLE = True
+else:
+    OCR_AVAILABLE = False
 
 from datetime import datetime
 from contextlib import contextmanager
