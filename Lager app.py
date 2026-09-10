@@ -530,6 +530,7 @@ if not st.session_state.aktiv_bedrift_id or not st.session_state.bruker:
                                 st.rerun()
                             else:
                                 st.error("Feil passord.")
+                                st.stop()
                         else:
                             st.error("Fant ingen bruker med denne mailen.")
                     except Exception as e:
