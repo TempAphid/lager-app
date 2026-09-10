@@ -5,14 +5,18 @@ Verksted-- og Lagerinventar (Med dynamiske lagre, bedriftsregistrering og sikker
 
 import shutil
 import pytesseract
+import streamlit as st
 
-# Sett tesseract-sti automatisk basert på miljø
 tesseract_path = shutil.which("tesseract")
 if tesseract_path:
     pytesseract.pytesseract.tesseract_cmd = tesseract_path
     OCR_AVAILABLE = True
 else:
     OCR_AVAILABLE = False
+
+# Midlertidig feilsøking
+st.write(f"Tesseract funnet på sti: {tesseract_path}")
+st.write(f"OCR_AVAILABLE satt til: {OCR_AVAILABLE}")
 
 from datetime import datetime
 from contextlib import contextmanager
