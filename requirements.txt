@@ -1,4 +1,3 @@
-requirements.txt:
 streamlit
 pandas
 psycopg2-binary
