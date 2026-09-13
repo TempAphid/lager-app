@@ -1,3 +1,4 @@
+requirements.txt:
 streamlit
 pandas
 psycopg2-binary
@@ -6,3 +7,4 @@ opencv-python-headless
 extra-streamlit-components
 bcrypt
 pytesseract
+streamlit-qrcode-scanner
