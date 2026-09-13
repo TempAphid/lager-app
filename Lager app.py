@@ -445,6 +445,7 @@ if not st.session_state.aktiv_bedrift_id or not st.session_state.bruker:
             if submit_reg:
                 if reg_navn.strip() and reg_mail.strip() and reg_passord.strip() and (kom_fra_ny_bedrift or (reg_kode.strip() and reg_bedrift_passord.strip())):
                     try:
+                        b_id = None
                         with db_handling("Feil ved registrering") as cur:
                             if kom_fra_ny_bedrift:
                                 b_id = st.session_state.ny_opprettet_bedrift_id
@@ -468,20 +469,30 @@ if not st.session_state.aktiv_bedrift_id or not st.session_state.bruker:
                                     "INSERT INTO brukere (navn, jobbmail, epost, passord_hash, bedrift_id) VALUES (%s, %s, %s, %s, %s)",
                                     (reg_navn.strip(), reg_mail.strip().lower(), reg_mail.strip().lower(), skrevet_hash, b_id)
                                 )
+                        # VIKTIG: alt under her ligger UTENFOR "with db_handling"-blokken.
+                        # db_handling committer transaksjonen når den forlater "with"-blokken normalt.
+                        # Hvis st.rerun() (som avbryter skriptet via et unntak) kalles INNI blokken,
+                        # fanges det opp som en feil og HELE transaksjonen rulles tilbake - da forsvinner
+                        # den nye brukeren fra databasen selv om alt så ut som det gikk bra på skjermen.
+                        if b_id:
+                            st.session_state.bruker = reg_navn.strip()
+                            st.session_state.epost = reg_mail.strip().lower()
+                            st.session_state.aktiv_bedrift_id = b_id
+                            st.session_state.ny_opprettet_bedrift_id = None
 
-                                st.session_state.bruker = reg_navn.strip()
-                                st.session_state.epost = reg_mail.strip().lower()
-                                st.session_state.aktiv_bedrift_id = b_id
-                                st.session_state.ny_opprettet_bedrift_id = None
+                            cookie_manager.set("aktiv_bedrift_id", str(b_id), max_age=30*24*60*60, key="set_reg_bedrift_id")
+                            cookie_manager.set("aktiv_bruker", reg_navn.strip(), max_age=30*24*60*60, key="set_reg_bruker")
+                            cookie_manager.set("aktiv_epost", reg_mail.strip().lower(), max_age=30*24*60*60, key="set_reg_epost")
 
-                                cookie_manager.set("aktiv_bedrift_id", str(b_id), max_age=30*24*60*60, key="set_reg_bedrift_id")
-                                cookie_manager.set("aktiv_bruker", reg_navn.strip(), max_age=30*24*60*60, key="set_reg_bruker")
-                                cookie_manager.set("aktiv_epost", reg_mail.strip().lower(), max_age=30*24*60*60, key="set_reg_epost")
-
-                                st.session_state.vis_registrering = False
-                                st.success("Bruker opprettet og innlogget!")
-                                st.rerun()
+                            st.session_state.vis_registrering = False
+                            st.success("Bruker opprettet og innlogget!")
+                            st.rerun()
                     except Exception as e:
+                        # Sikkerhetsnett: hvis noe feiler her, skal vi ALDRI stå igjen med en
+                        # halvveis innlogget session_state uten en faktisk lagret bruker i databasen.
+                        st.session_state.bruker = None
+                        st.session_state.epost = None
+                        st.session_state.aktiv_bedrift_id = None
                         st.error(f"Feil ved registrering: {e}")
                 else:
                     st.warning("Vennligst fyll ut alle feltene (inkludert bedriftspassord).")
