@@ -474,9 +474,9 @@ if not st.session_state.aktiv_bedrift_id or not st.session_state.bruker:
                                 st.session_state.aktiv_bedrift_id = b_id
                                 st.session_state.ny_opprettet_bedrift_id = None
 
-                                cookie_manager.set("aktiv_bedrift_id", str(b_id), max_age=30*24*60*60)
-                                cookie_manager.set("aktiv_bruker", reg_navn.strip(), max_age=30*24*60*60)
-                                cookie_manager.set("aktiv_epost", reg_mail.strip().lower(), max_age=30*24*60*60)
+                                cookie_manager.set("aktiv_bedrift_id", str(b_id), max_age=30*24*60*60, key="set_reg_bedrift_id")
+                                cookie_manager.set("aktiv_bruker", reg_navn.strip(), max_age=30*24*60*60, key="set_reg_bruker")
+                                cookie_manager.set("aktiv_epost", reg_mail.strip().lower(), max_age=30*24*60*60, key="set_reg_epost")
 
                                 st.session_state.vis_registrering = False
                                 st.success("Bruker opprettet og innlogget!")
@@ -517,9 +517,9 @@ if not st.session_state.aktiv_bedrift_id or not st.session_state.bruker:
 
                                 if husk_meg:
                                     if db_bedrift_id:
-                                        cookie_manager.set("aktiv_bedrift_id", str(db_bedrift_id), max_age=30*24*60*60)
-                                    cookie_manager.set("aktiv_bruker", db_navn, max_age=30*24*60*60)
-                                    cookie_manager.set("aktiv_epost", inn_mail.strip().lower(), max_age=30*24*60*60)
+                                        cookie_manager.set("aktiv_bedrift_id", str(db_bedrift_id), max_age=30*24*60*60, key="set_login_bedrift_id")
+                                    cookie_manager.set("aktiv_bruker", db_navn, max_age=30*24*60*60, key="set_login_bruker")
+                                    cookie_manager.set("aktiv_epost", inn_mail.strip().lower(), max_age=30*24*60*60, key="set_login_epost")
 
                                 st.success("Innlogget!")
                                 st.rerun()
@@ -528,6 +528,12 @@ if not st.session_state.aktiv_bedrift_id or not st.session_state.bruker:
                         else:
                             st.error("Fant ingen bruker med denne mailen.")
                     except Exception as e:
+                        # Sikkerhetsnett: hvis noe feiler ETTER at passordet ble godkjent
+                        # (f.eks. ved lagring av "husk meg"-cookien), skal vi ALDRI bli stående
+                        # med en delvis innlogget session_state. Nullstill for å tvinge ny innlogging.
+                        st.session_state.bruker = None
+                        st.session_state.epost = None
+                        st.session_state.aktiv_bedrift_id = None
                         st.error(f"Feil ved innlogging: {e}")
                 else:
                     st.warning("Vennligst fyll ut både mail og passord.")
@@ -554,7 +560,7 @@ finally:
 
 if df_aktiv.empty:
     try:
-        cookie_manager.delete("aktiv_bedrift_id")
+        cookie_manager.delete("aktiv_bedrift_id", key="del_notfound_bedrift_id")
     except Exception:
         pass
     st.session_state.aktiv_bedrift_id = None
@@ -571,9 +577,9 @@ st.sidebar.info(f"Bedrift: **{valgt_bedrift_navn}**\n\nBruker: **{st.session_sta
 
 if st.sidebar.button("🔄 Logg av / Bytt bruker"):
     try:
-        cookie_manager.delete("aktiv_bedrift_id")
-        cookie_manager.delete("aktiv_bruker")
-        cookie_manager.delete("aktiv_epost")
+        cookie_manager.delete("aktiv_bedrift_id", key="del_logout_bedrift_id")
+        cookie_manager.delete("aktiv_bruker", key="del_logout_bruker")
+        cookie_manager.delete("aktiv_epost", key="del_logout_epost")
     except Exception:
         pass
     st.session_state.aktiv_bedrift_id = None
