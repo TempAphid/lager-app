@@ -6,6 +6,7 @@ Verksted-- og Lagerinventar (Med dynamiske lagre, bedriftsregistrering og sikker
 from datetime import datetime
 from contextlib import contextmanager
 import hashlib
+import os
 
 import pandas as pd
 import psycopg2
@@ -55,18 +56,40 @@ def sjekk_passord(passord: str, hashed: str) -> bool:
 @st.cache_resource
 def hent_tilkoblingspool():
     try:
-        db_config = st.secrets["database"]
+        # Fungerer på to hostingmiljøer:
+        # 1) Streamlit Community Cloud -> leser fra st.secrets["database"] (secrets.toml)
+        # 2) Render/Docker/andre -> leser fra miljøvariabler (satt i Render sitt dashboard)
+        # NB: st.secrets kaster en feil (ikke bare False) hvis secrets.toml ikke finnes
+        # i det hele tatt (som på Render) - derfor må selve oppslaget skje i en try/except.
+        try:
+            har_secrets_toml = "database" in st.secrets
+        except Exception:
+            har_secrets_toml = False
+
+        if har_secrets_toml:
+            db_config = st.secrets["database"]
+            dbname, user, passord, host, port = (
+                db_config["dbname"], db_config["user"], db_config["password"],
+                db_config["host"], db_config["port"],
+            )
+        else:
+            dbname = os.environ["DB_NAME"]
+            user = os.environ["DB_USER"]
+            passord = os.environ["DB_PASSWORD"]
+            host = os.environ["DB_HOST"]
+            port = os.environ.get("DB_PORT", "5432")
+
         # VIKTIG: ThreadedConnectionPool - Streamlit kjører hver brukersesjon i egen tråd,
         # og SimpleConnectionPool er IKKE trådsikker (kan dele ut samme tilkobling til
         # flere sesjoner samtidig, noe som gir uforutsigbare feil som "tilfeldig innlogging").
         return pool.ThreadedConnectionPool(
             minconn=1,
             maxconn=10,
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
+            dbname=dbname,
+            user=user,
+            password=passord,
+            host=host,
+            port=port
         )
     except Exception as e:
         st.error(f"Kunne ikke opprette databasetilkoblingspool: {e}")
