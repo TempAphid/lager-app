@@ -222,6 +222,14 @@ def hent_lagre(bedrift_id):
     finally:
         db_pool.putconn(conn)
 
+@st.cache_data(ttl=20)
+def hent_inventar(bedrift_id):
+    conn = db_pool.getconn()
+    try:
+        return pd.read_sql("SELECT * FROM inventar WHERE bedrift_id = %s", conn, params=(bedrift_id,))
+    finally:
+        db_pool.putconn(conn)
+
 # --------------------------------------------------------------------------
 # DIALOGER / POPUPS
 # --------------------------------------------------------------------------
@@ -247,6 +255,7 @@ def uttak_dialog(valgt_id, delnavn_org, antall_org, antall_ut, aktiv_bedrift_id)
                     cur_w.execute("UPDATE inventar SET antall = %s WHERE id = %s", (gjenstaaende, valgt_id))
                     logg_handling("Uttak", f"Tok ut {antall_ut} stk av '{delnavn_org}'", aktiv_bedrift_id, valgt_id, -antall_ut)
             st.session_state.varsel = ("success", "Uttak gjennomført!")
+            hent_inventar.clear()
             st.session_state.side = "Se lager"
             st.rerun()
     with col2:
@@ -272,6 +281,7 @@ def manglende_felt_dialog(mangler, handling_type, data):
                     )
                     logg_handling("Redigering", f"Endret info på '{dn}' (tvunget gjennom)", bed_id, valgt_id)
                 st.session_state.form_key_counter += 1
+                hent_inventar.clear()
                 st.session_state.varsel = ("success", f"Endringer på '{dn}' er lagret!")
                 st.session_state.side = "Se lager"
                 st.rerun()
@@ -285,6 +295,7 @@ def manglende_felt_dialog(mangler, handling_type, data):
                     ny_id = cur.fetchone()[0]
                     logg_handling("Ny del", f"La til {ant} stk av '{dn}' (tvunget gjennom)", bed_id, ny_id, ant)
                 st.session_state.form_key_counter += 1
+                hent_inventar.clear()
                 st.success("Ny del lagret!")
                 st.rerun()
     with col2:
@@ -311,6 +322,7 @@ def rediger_dialog(valgt_id, ny_bilmerke, ny_delnavn, ny_delenummer, ny_antall, 
                 )
                 logg_handling("Redigering", f"Endret info på '{ny_delnavn}'", aktiv_bedrift_id, valgt_id)
             st.session_state.form_key_counter += 1
+            hent_inventar.clear()
             st.session_state.varsel = ("success", f"Endringer på '{ny_delnavn}' er lagret!")
             st.session_state.side = "Se lager"
             st.rerun()
@@ -327,6 +339,7 @@ def slett_dialog(valgt_id, delnavn_org, aktiv_bedrift_id):
             with db_handling("Feil ved sletting") as cur_w:
                 cur_w.execute("DELETE FROM inventar WHERE id = %s", (valgt_id,))
                 logg_handling("Sletting", f"Slettet '{delnavn_org}'", aktiv_bedrift_id, valgt_id, -999)
+            hent_inventar.clear()
             st.session_state.varsel = ("success", f"'{delnavn_org}' ble slettet.")
             st.session_state.side = "Se lager"
             st.rerun()
@@ -371,6 +384,7 @@ def ny_del_dialog(bm, dn, de, ant, plass, hylle, aktiv_bedrift_id):
                 logg_handling("Ny del", f"La til {ant} stk av '{dn}'", aktiv_bedrift_id, ny_id, ant)
 
             st.session_state.form_key_counter += 1
+            hent_inventar.clear()
             st.success("Ny del lagret!")
             st.rerun()
     with col2:
@@ -635,11 +649,7 @@ st.divider()
 # --- 1. SE LAGER & SØK ---
 if st.session_state.side == "Se lager":
     st.header(f"Oversikt over lageret — {valgt_bedrift_navn}")
-    conn_temp = db_pool.getconn()
-    try:
-        df = pd.read_sql("SELECT * FROM inventar WHERE bedrift_id = %s", conn_temp, params=(aktiv_bedrift_id,))
-    finally:
-        db_pool.putconn(conn_temp)
+    df = hent_inventar(aktiv_bedrift_id)
 
     if not df.empty:
         if tilgjengelige_lagre:
@@ -874,11 +884,8 @@ elif st.session_state.side == "Skann og OCR":
 # --- 3. BESTILLINGSLISTE ---
 elif st.session_state.side == "Bestillingsliste":
     st.header(f"🛒 Bestillingsliste — {valgt_bedrift_navn}")
-    conn_temp = db_pool.getconn()
-    try:
-        df_lav = pd.read_sql("SELECT * FROM inventar WHERE bedrift_id = %s AND antall <= %s ORDER BY antall ASC", conn_temp, params=(aktiv_bedrift_id, LAV_BEHOLDNING_GRENSE))
-    finally:
-        db_pool.putconn(conn_temp)
+    df_alt = hent_inventar(aktiv_bedrift_id)
+    df_lav = df_alt[df_alt["antall"] <= LAV_BEHOLDNING_GRENSE].sort_values("antall")
 
     if not df_lav.empty:
         kolonner_aa_vise_lav = [c for c in df_lav.columns if c not in ["id", "bedrift_id"]]
@@ -921,10 +928,10 @@ elif st.session_state.side == "Administrer deler":
         if st.session_state.valgt_id != valgt_id:
             st.session_state.valgt_id = valgt_id
 
-        with db_handling("Feil ved henting av deldetaljer") as cur:
-            cur.execute("SELECT bilmerke, delnavn, delenummer, antall, plassering, hylle FROM inventar WHERE id = %s", (valgt_id,))
-            res = cur.fetchone()
-        bilmerke_org, delnavn_org, delenummer_org, antall_org, plassering_org, hylle_org = res
+        # Slår opp den valgte delen i dataen vi allerede har fra spørringen over,
+        # i stedet for å gjøre et nytt databasekall for akkurat samme informasjon.
+        deler_oppslag = {row[0]: row for row in deler}
+        _, delnavn_org, bilmerke_org, delenummer_org, antall_org, plassering_org, hylle_org = deler_oppslag[valgt_id]
 
         handling = st.radio("Handling:", ["📉 Ta ut", "✏️ Rediger", "🗑️ Slett"])
 
@@ -1043,6 +1050,7 @@ elif st.session_state.side == "Opprett lagre":
                                         )
                                     st.session_state.rediger_lager_navn = None
                                     hent_lagre.clear()
+                                    hent_inventar.clear()
                                     st.session_state.varsel = ("success", f"Lageret '{l_navn}' ble endret til '{nytt_navn_input.strip()}'! Alle deler ble oppdatert.")
                                     st.rerun()
                                 except Exception as e:
