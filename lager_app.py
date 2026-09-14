@@ -619,7 +619,7 @@ if df_aktiv.empty:
 valgt_bedrift_navn = df_aktiv.iloc[0]["navn"]
 tilgjengelige_lagre = hent_lagre(aktiv_bedrift_id)
 
-st.title(f"🛠️ Verksted- och Lagerinventar — {valgt_bedrift_navn}")
+st.title(f"🛠️ ScanLager — {valgt_bedrift_navn}")
 
 # --- SIDEMENY ---
 st.sidebar.header("👤 Innlogget sesjon")
