@@ -29,9 +29,7 @@ try:
 except ImportError:
     HAR_OCR_MODUL = False
 
-if "cookie_manager" not in st.session_state:
-    st.session_state.cookie_manager = stx.CookieManager()
-cookie_manager = st.session_state.cookie_manager
+cookie_manager = stx.CookieManager()
 
 LAV_BEHOLDNING_GRENSE = 1
 MAKS_LOGG_RADER = 50
