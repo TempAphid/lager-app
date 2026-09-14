@@ -28,11 +28,9 @@ try:
 except ImportError:
     HAR_OCR_MODUL = False
 
-@st.cache_resource
-def hent_cookie_manager():
-    return stx.CookieManager()
-
-cookie_manager = hent_cookie_manager()
+if "cookie_manager" not in st.session_state:
+    st.session_state.cookie_manager = stx.CookieManager()
+cookie_manager = st.session_state.cookie_manager
 
 LAV_BEHOLDNING_GRENSE = 1
 MAKS_LOGG_RADER = 50
