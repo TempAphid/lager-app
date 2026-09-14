@@ -222,6 +222,21 @@ else:
     lagret_bruker_cookie = cookie_manager.get("aktiv_bruker")
     lagret_epost_cookie = cookie_manager.get("aktiv_epost")
 
+    # CookieManager henter cookiene ASYNKRONT fra nettleseren (en liten tur-retur via
+    # en skjult komponent). Rett etter en sideoppdatering kan det hende de faktiske
+    # cookie-verdiene ikke har kommet tilbake til Python ennå på akkurat dette første
+    # kjøreøyeblikket, selv om de finnes i nettleseren. Uten denne sjekken kan appen da
+    # feilaktig tro at du ikke er innlogget. Vi gir den derfor én ekstra sjanse (kort
+    # pause + ny kjøring) den ENE gangen det ser ut som ingen cookies er der.
+    if (
+        not st.session_state.aktiv_bedrift_id
+        and not lagret_bedrift_cookie
+        and not st.session_state.get("cookie_sjekk_kjort", False)
+    ):
+        st.session_state.cookie_sjekk_kjort = True
+        time.sleep(0.3)
+        st.rerun()
+
     if not st.session_state.aktiv_bedrift_id and lagret_bedrift_cookie:
         try:
             st.session_state.aktiv_bedrift_id = int(lagret_bedrift_cookie)
