@@ -1,3 +1,5 @@
+FROM python:3.12-slim
+
 # Systempakker: tesseract for OCR (norsk + engelsk) + biblioteker opencv-python-headless trenger
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
