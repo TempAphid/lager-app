@@ -23,7 +23,7 @@ COPY . .
 # Render setter selv miljøvariabelen $PORT ved kjøretid - vi binder til den, ikke en fast port
 # VIKTIG: hvis filnavnet ditt inneholder mellomrom (f.eks. "Lager app.py"), MÅ det stå i anførselstegn slik som her.
 # Anbefaling: bytt filnavn til noe uten mellomrom (f.eks. lager_app.py) for å unngå fallgruver senere.
-CMD streamlit run "Lager app.py" \
+CMD streamlit run "Lager_app.py" \
     --server.port=$PORT \
     --server.address=0.0.0.0 \
     --server.headless=true \
