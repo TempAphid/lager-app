@@ -28,7 +28,11 @@ try:
 except ImportError:
     HAR_OCR_MODUL = False
 
-cookie_manager = stx.CookieManager()
+@st.cache_resource
+def hent_cookie_manager():
+    return stx.CookieManager()
+
+cookie_manager = hent_cookie_manager()
 
 LAV_BEHOLDNING_GRENSE = 1
 MAKS_LOGG_RADER = 50
@@ -211,6 +215,7 @@ else:
     if not st.session_state.epost and lagret_epost_cookie:
         st.session_state.epost = lagret_epost_cookie
 
+@st.cache_data(ttl=60)
 def hent_lagre(bedrift_id):
     conn = db_pool.getconn()
     try:
@@ -339,6 +344,7 @@ def slett_lager_dialog(aktiv_bedrift_id, l_navn):
         if st.button("Ja, slett lager", type="primary", use_container_width=True):
             with db_handling("Feil ved sletting av lager") as cur:
                 cur.execute("DELETE FROM lagre WHERE bedrift_id = %s AND navn = %s", (aktiv_bedrift_id, l_navn))
+            hent_lagre.clear()
             st.session_state.varsel = ("success", f"Lageret '{l_navn}' ble slettet.")
             st.rerun()
     with col2:
@@ -1006,6 +1012,7 @@ elif st.session_state.side == "Opprett lagre":
                 try:
                     with db_handling("Feil ved opprettelse av lager") as cur:
                         cur.execute("INSERT INTO lagre (bedrift_id, navn) VALUES (%s, %s)", (aktiv_bedrift_id, nytt_lager_navn.strip()))
+                    hent_lagre.clear()
                     st.session_state.varsel = ("success", f"Lageret '{nytt_lager_navn.strip()}' ble opprettet!")
                     st.rerun()
                 except Exception as e:
@@ -1037,6 +1044,7 @@ elif st.session_state.side == "Opprett lagre":
                                             (nytt_navn_input.strip(), aktiv_bedrift_id, l_navn)
                                         )
                                     st.session_state.rediger_lager_navn = None
+                                    hent_lagre.clear()
                                     st.session_state.varsel = ("success", f"Lageret '{l_navn}' ble endret til '{nytt_navn_input.strip()}'! Alle deler ble oppdatert.")
                                     st.rerun()
                                 except Exception as e:
