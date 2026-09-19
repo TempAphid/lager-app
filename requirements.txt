@@ -7,3 +7,5 @@ extra-streamlit-components
 bcrypt
 pytesseract
 streamlit-qrcode-scanner
+resend
+openpyxl
